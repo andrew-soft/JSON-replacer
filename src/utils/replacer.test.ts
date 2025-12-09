@@ -1,4 +1,4 @@
-import { replaceDogWithCat, ReplacementLimitExceededError } from './replacer';
+import { replaceDogWithCat, ReplacementLimitExceededError, CircularReferenceError, MaxDepthExceededError } from './replacer';
 
 describe('replaceDogWithCat', () => {
   describe('Core logic', () => {
@@ -152,9 +152,9 @@ describe('replaceDogWithCat', () => {
       };
       const result = replaceDogWithCat(input, 100);
       expect((result.data as any).animals[0].type).toBe('cat');
-      expect((result.data as any).animals[1].type).toBe('cat'); // 'cat' remains 'cat'
+      expect((result.data as any).animals[1].type).toBe('cat'); // Original 'cat' value unchanged
       expect((result.data as any).metadata.favorite).toBe('cat');
-      expect(result.replacementCount).toBe(2); // Only 'dog' values are replaced
+      expect(result.replacementCount).toBe(2); // Two 'dog' values replaced
     });
 
     it('should handle very deep nesting (20 levels)', () => {
@@ -168,6 +168,23 @@ describe('replaceDogWithCat', () => {
         current = current.nested;
       }
       expect(current).toBe('cat');
+      expect(result.replacementCount).toBe(1);
+    });
+
+    it('should throw error when maximum depth is exceeded', () => {
+      let input: any = 'dog';
+      for (let i = 0; i < 110; i++) {
+        input = { nested: input };
+      }
+      expect(() => replaceDogWithCat(input, 200)).toThrow(MaxDepthExceededError);
+    });
+
+    it('should handle depth up to the default limit', () => {
+      let input: any = 'dog';
+      for (let i = 0; i < 50; i++) {
+        input = { nested: input };
+      }
+      const result = replaceDogWithCat(input, 100);
       expect(result.replacementCount).toBe(1);
     });
   });
@@ -215,14 +232,14 @@ describe('replaceDogWithCat', () => {
       const input = { pets: ['dog', 'cat', 'dog'] };
       const result = replaceDogWithCat(input, 100);
       expect((result.data as any).pets).toEqual(['cat', 'cat', 'cat']);
-      expect(result.replacementCount).toBe(2);
+      expect(result.replacementCount).toBe(2); // Two 'dog' strings replaced, 'cat' unchanged
     });
 
     it('should handle arrays with object values containing "dog"', () => {
       const input = [{ pet: 'dog' }, { pet: 'cat' }, { pet: 'dog' }];
       const result = replaceDogWithCat(input, 100);
       expect((result.data as any)[0].pet).toBe('cat');
-      expect((result.data as any)[1].pet).toBe('cat'); // 'cat' remains 'cat'
+      expect((result.data as any)[1].pet).toBe('cat'); // Original 'cat' value unchanged
       expect((result.data as any)[2].pet).toBe('cat');
       expect(result.replacementCount).toBe(2);
     });
@@ -236,15 +253,22 @@ describe('replaceDogWithCat', () => {
       expect(result.replacementCount).toBe(1);
     });
 
-    it.skip('should handle circular reference prevention (if needed)', () => {
-      // Note: This test is skipped because circular references cause stack overflow
-      // In production, we'd need to add cycle detection using a WeakSet to track visited objects
-      // This test documents the current limitation
+    it('should detect and throw error for circular references', () => {
       const input: any = { pet: 'dog' };
       input.self = input;
-      // This will cause a stack overflow, which is expected behavior without cycle detection
-      // In production, we'd need cycle detection
-      expect(() => replaceDogWithCat(input, 100)).toThrow();
+      expect(() => replaceDogWithCat(input, 100)).toThrow(CircularReferenceError);
+    });
+
+    it('should detect circular references in arrays', () => {
+      const input: any = ['dog'];
+      input.push(input);
+      expect(() => replaceDogWithCat(input, 100)).toThrow(CircularReferenceError);
+    });
+
+    it('should detect circular references in nested structures', () => {
+      const input: any = { level1: { pet: 'dog' } };
+      input.level1.circular = input;
+      expect(() => replaceDogWithCat(input, 100)).toThrow(CircularReferenceError);
     });
 
     it('should handle very large arrays', () => {

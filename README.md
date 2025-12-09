@@ -85,13 +85,33 @@ Recursively replaces all values equal to "dog" with "cat" in the provided JSON p
 - Invalid JSON
 - Missing request body
 - Replacement limit exceeded
+- Circular reference detected
+- Maximum nesting depth exceeded
 
+**Replacement Limit Exceeded:**
 ```json
 {
   "error": "Replacement limit exceeded",
   "message": "Replacement limit exceeded: 101 replacements (limit: 100)",
   "replacements": 101,
   "limit": 100
+}
+```
+
+**Circular Reference Detected:**
+```json
+{
+  "error": "Circular reference detected",
+  "message": "Circular reference detected in input data"
+}
+```
+
+**Maximum Depth Exceeded:**
+```json
+{
+  "error": "Maximum depth exceeded",
+  "message": "Maximum nesting depth exceeded: 100",
+  "maxDepth": 100
 }
 ```
 
@@ -164,8 +184,8 @@ With more time, the following test cases would be valuable:
 
 ### Security Testing
 - **JSON injection attacks**: Test with malicious JSON structures
-- **DoS protection**: Verify behavior with extremely deep nesting (1000+ levels)
-- **Circular reference handling**: Test with circular object references (currently causes stack overflow)
+- **DoS protection**: ✅ Implemented - Maximum depth limit (100 levels by default)
+- **Circular reference handling**: ✅ Implemented - Detects and throws error for circular references
 - **Prototype pollution**: Ensure object prototype manipulation doesn't affect behavior
 - **Content-Type validation**: Reject non-JSON content types
 

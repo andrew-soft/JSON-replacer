@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { replaceDogWithCat, ReplacementLimitExceededError } from '../utils/replacer';
+import { replaceDogWithCat, ReplacementLimitExceededError, CircularReferenceError, MaxDepthExceededError } from '../utils/replacer';
 import { loadConfig } from '../config';
 
 /**
@@ -36,6 +36,23 @@ export async function replaceHandler(req: Request, res: Response): Promise<void>
         message: error.message,
         replacements: error.replacementCount,
         limit: error.limit,
+      });
+      return;
+    }
+
+    if (error instanceof CircularReferenceError) {
+      res.status(400).json({
+        error: 'Circular reference detected',
+        message: error.message,
+      });
+      return;
+    }
+
+    if (error instanceof MaxDepthExceededError) {
+      res.status(400).json({
+        error: 'Maximum depth exceeded',
+        message: error.message,
+        maxDepth: error.maxDepth,
       });
       return;
     }
